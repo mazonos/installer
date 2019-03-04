@@ -8,4 +8,4 @@ To install
 #make install DESTDIR = local-install
 
 To remove
-#make unistall DESTDIR = local-install
+#make uninstall DESTDIR = local-install
