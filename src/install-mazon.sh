@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #################################################################
-#       install dialog Mazon OS - version 1.0.15-20190306       #
+#       install dialog Mazon OS - version 1.2.08-20190308       #
 #								                                #
 #      @utor: Diego Sarzi	    <diegosarzi@gmail.com>          #
 #             Vilmar Catafesta 	<vcatafesta@gmail.com>	    	#
@@ -98,6 +98,8 @@ CURS_ZERO="\\033[0G"
 : ${STARTXFCE4=$true}
 : ${xUUIDSWAP=""}
 : ${xPARTSWAP=""}
+: ${xPARTEFI=""}
+: ${lEFI=$false}
 : ${xLABEL="MAZONOS"}
 
 # usuario/senha/hostmame/group
@@ -108,27 +110,27 @@ CURS_ZERO="\\033[0G"
 
 # vars
 declare -i ok=$true
-declare -i grafico=$false
+declare -i grafico=$true
 declare -r cshell="/bin/bash"
 declare -r calias="mazonos"
 declare -r cnick="mazon"
 declare -r chome="/home"
 declare -r capp="install-mazon"
 declare -r cdistro="MazonOS"
-declare -r version="v1.0.15-20190306"
+declare -r version="v1.2.08-20190308"
 declare -r ccabec="$cdistro Linux installer $version"
 declare -r ctitle="$cdistro Linux"
 declare -r welcome="Welcome to the $ccabec"
 declare -r site="$chost.com"
-declare -r xemail="root@$site"
+declare -r xemail="root@mazonos.com"
 declare -r dir_install="/mnt/$chost"
 declare -r url_distro="http://$site/releases/"
-declare -r tarball_min=$cnick"_minimal-0.3.tar.xz"
-declare -r sha256_min=$cnick"_minimal-0.3.tar.xz.sha256sum"
-declare -r tarball_full=$cnick"_beta-1.2.tar.xz"
-declare -r sha256_full=$cnick"_beta-1.2.tar.xz.sha256sum"
 declare -r pwd=$PWD
 declare -r cfstab=$dir_install"/etc/fstab"
+: ${tarball_min=$cnick"_minimal-0.3.tar.xz"}
+: ${sha256_min=$cnick"_minimal-0.3.tar.xz.sha256sum"}
+: ${tarball_full=$cnick"_beta-1.3.tar.xz"}
+: ${sha256_full=$cnick"_beta-1.3.tar.xz.sha256sum"}
 : ${FULLINST=$true}
 : ${tarball_default=$tarball_full}
 : ${sha256_default=$sha256_full}
@@ -157,6 +159,7 @@ Mount proc/ dev/ sys and chroot to /mnt:
 # mount --type proc /proc proc/
 # mount --rbind /dev dev/
 # mount --rbind /sys sys/
+# mount --rbind /run run/
 # chroot /mnt
 
 Once in chroot, let's change the fstab file in /etc/fstab, using vim or nano.
@@ -175,8 +178,8 @@ In case you don't remember which is the root partition, use fdisk -l to see it.
 - Reboot your system and enjoy MazonOS.
 
 - ( DUAL BOOT USING EXISTING GRUB )
-- If you want to do a dual boot with your existing system with a working grub, exit the chroot with "exit" command and 
-unmount the partitions with:
+- If you want to do a dual boot with your existing system with a working grub, exit
+  the chroot with "exit" command and unmount the partitions with:
 # exit
 # umount -Rl /mnt
 # update-grub
@@ -356,18 +359,20 @@ function display_result() {
 	fi
 
 	dialog 	--title 	"$2"			\
+            --beep                      \
     		--no-collapse				\
+            --no-cr-wrap                \
 			--backtitle	"$xbacktitle"	\
     		--msgbox 	"$1" 			\
 			25 80
 }
 
 function alerta(){
-	dialog 								\
-			--title 	"$1" 			\
-			--backtitle	"$ccabec"		\
-			--msgbox 	"$2" 			\
-			9 60
+	dialog 								        \
+			--title 	"$1" 			        \
+			--backtitle	"$ccabec"		        \
+			--msgbox 	"$2\n$3\n$4\n$5\n$6"  \
+			10 60
 }
 
 function info(){
@@ -435,7 +440,7 @@ function sh_choosepackage(){
 		tarball_full="${pkt[0]}"
 		sha256_full="${pkt[0]}.sha256sum"
     fi
-    rm -r index.html
+    sh_delpackageindex
 	return 0
 }
 
@@ -443,7 +448,7 @@ function sh_choosepackage(){
 function sh_delpackageindex(){
     ret=`log_info_msg "$cmsgdelpackageindex"`
     msg "INFO" "$ret"
-    rm index.html* > /dev/null 2>&1
+    rm -f index.html* > /dev/null 2>&1
     evaluate_retval
     return $?
 
@@ -468,7 +473,7 @@ function sh_testarota(){
 function sh_delsha256sum(){
     cinfo=`log_info_msg "$cmsgdelsha256"`
 	msg "INFO" "$info"
-    rm -f $sha256_default > /dev/null 2>&1
+    rm -f $sha256_default* > /dev/null 2>&1
     evaluate_retval
     return $?
 }
@@ -486,7 +491,7 @@ function sh_wgetsha256sum(){
 function sh_deltarball(){
     cinfo=`log_info_msg "$cmsgdeltarball"`
     msg "INFO" "$info"
-    rm -f $tarball_default > /dev/null 2>&1
+    rm -f $tarball_default* > /dev/null 2>&1
     evaluate_retval
     return $?
 }
@@ -507,7 +512,6 @@ function sh_confhost(){
 		echo $chost > $dir_install/etc/hostname
 	    return $?
 	fi
-
 }
 
 function sh_adduser(){
@@ -593,27 +597,59 @@ function sh_exectar(){
 }
 
 function sh_initbind(){
+    local xproc="--type proc /proc $dir_install/proc/"
+	local xsys="--rbind /sys $dir_install/sys/"
+    local xdev="--rbind /dev $dir_install/dev/"
+    local xrun="--rbind /run $dir_install/run/"
+    local lproc=$false
+    local lsys=$false
+    local ldev=$false
+    local lrun=$false
+
 	cd $dir_install
 	mkdir -p $dir_install/home > /dev/null 2>&1
 	mkdir -p $dir_install/proc > /dev/null 2>&1
 	mkdir -p $dir_install/sys > /dev/null 2>&1
 	mkdir -p $dir_install/dev > /dev/null 2>&1
-   	mount --type proc /proc proc/ > /dev/null 2>&1
-	mount --rbind /sys sys/ > /dev/null 2>&1
-    mount --rbind /dev dev/ > /dev/null 2>&1
+	mkdir -p $dir_install/run > /dev/null 2>&1
+	mkdir -p $dir_install/boot/EFI > /dev/null 2>&1
+
+   	mensagem "mount $xproc"
+   	mount $xproc > /dev/null 2>&1
+    lresultbind=$true
+    if [ $? = 0 ] ; then lproc="OK"; else lproc="FAIL" lresultbind=$false; fi
+
+	mensagem "mount $xsys"
+	mount $xsys > /dev/null 2>&1
+    if [ $? = 0 ] ; then lsys="OK"; else lsys="FAIL" lresultbind=$false; fi
+
+    mensagem "mount $xdev"
+    mount $xdev > /dev/null 2>&1
+    if [ $? = 0 ] ; then ldev="OK"; else ldev="FAIL" lresultbind=$false; fi
+
+    mensagem "mount $xrun"
+    mount $xrun > /dev/null 2>&1
+    if [ $? = 0 ] ; then lrun="OK"; else lrun="FAIL" lresultbind=$false; fi
+
+    xstrbind="mount $xproc : $lproc    \
+            \nmount $xsys : $lsys     \
+            \nmount $xdev : $ldev     \
+            \nmount $xrun : $lrun"
 }
 
 
 function sh_bind(){
-	if [ $STANDALONE = $true ]; then
-		conf "*** BIND ***" "\n$cinitbind?"
-		bindyes=$?
-		if [ $bindyes = $false ]; then
-		    alerta "*** BIND *** " "$cancelbind"
-			STANDALONE=$false
-			return $STANDALONE
-		fi
-	fi
+    if [ $# -lt 1 ] ; then
+    	if [ $STANDALONE = $true ]; then
+    		conf "*** BIND ***" "\n$cinitbind?"
+    		bindyes=$?
+    		if [ $bindyes = $false ]; then
+    		    alerta "*** BIND *** " "$cancelbind"
+    			STANDALONE=$false
+    			return $STANDALONE
+    		fi
+    	fi
+   	fi
 
 	if [ $LPARTITION -eq 0 ]; then
 		choosepartition
@@ -627,11 +663,28 @@ function sh_bind(){
 		sh_mountpartition
 	fi
 
+    xstrbind=""
+    lresultbind=$false
 	sh_initbind
+    if [ $lresultbind = $true ]; then
+         cmsgbindresult="BIND OK"
+    else cmsgbindresult="BIND FAIL"; fi
 
-	if [ $STANDALONE = $true ]; then
-	    alerta "*** BIND *** " "BIND OK"
-		STANDALONE=$false
+    if [ $# -lt 1 ] ; then
+    	if [ $STANDALONE = $true ]; then
+            alerta "*** BIND ***" "$xstrbind" "\n$cmsgbindresult";
+    		STANDALONE=$false
+    	fi
+	fi
+}
+
+function sh_efi(){
+	local result=$(fdisk $sd -l | grep EFI | cut -c1-11)
+	xPARTEFI=$result
+    lEFI=$false
+
+	if [ "$result" != "" ] ; then
+        lEFI=$true
 	fi
 }
 
@@ -656,14 +709,38 @@ function grubinstall(){
 				return 1
 			fi
 		fi
-
-		sh_bind
+		sh_bind $true
 		mensagem "$cmsgwaitgrub: \n\n$sd"
-	    chroot . /bin/bash -c "grub-install $sd" > /dev/null 2>&1
-		chroot . /bin/bash -c "grub-mkconfig -o /boot/grub/grub.cfg" > /dev/null 2>&1
+        sh_efi
+
+        if [ $lEFI = $true ]; then
+            conf "** EFI **" "Detectada particao EFI: $xPARTEFI \nDeseja instalar o GRUB EFI?\n\nSim=EFI Nao=MBR"
+            if [ $? = $true ] ; then
+                mensagem "Desmontando partição: $xPARTEFI"
+                umount -f -rl $xPARTEFI 2> /dev/null
+                mensagem "Formatando partição: $xPARTEFI"
+                mkfs.fat -F32 $xPARTEFI 2> /dev/null
+                mensagem "Montando partição: $xPARTEFI"
+    	        mount $xPARTEFI $dir_install/boot/EFI 2> /dev/null
+                mensagem "Instalando GRUB EFI na partição: $xPARTEFI"
+            	chroot . /bin/bash -c "grub-install                 \
+                                        --target=x86_64-efi         \
+                                        --efi-directory=/boot/EFI   \
+                                        --bootloader-id=mazon       \
+                                        --recheck">/dev/null 2>&1
+            else
+                mensagem "Instalando GRUB no disco: $sd"
+                chroot . /bin/bash -c "grub-install $sd" > /dev/null 2>&1
+            fi
+         else
+            mensagem "Instalando GRUB no disco: $sd"
+            chroot . /bin/bash -c "grub-install $sd" > /dev/null 2>&1
+        fi
+	    chroot . /bin/bash -c "grub-mkconfig -o /boot/grub/grub.cfg" > /dev/null 2>&1
         echo "set menu_color_normal=green/black"  >> $dir_install/boot/grub/grub.cfg 2> /dev/null
         echo "set menu_color_highlight=white/red" >> $dir_install/boot/grub/grub.cfg 2> /dev/null
-	    alerta "*** GRUB *** " "$cgrubsuccess"
+	    alerta "*** GRUB *** " "$sd" "\n\n$cgrubsuccess"
+
 	else
 		info "\n$ccancelgrub"
 	fi
@@ -710,6 +787,8 @@ function sh_fstab(){
 
 	if [ $STANDALONE = $true ]; then
 		nano $cfstab
+		local result=$( cat $cfstab )
+		display_result "$result" "$cfstab"
 		STANDALONE=$false
 	else
 		local result=$( cat $cfstab )
@@ -720,7 +799,8 @@ function sh_fstab(){
 
 function sh_finish(){
 	alerta "*** INSTALL ***" "$cfinish"
-	exit
+    clear
+	exit 0
 }
 
 function sh_wgettarball(){
@@ -732,7 +812,6 @@ function sh_wgettarball(){
 	return $?
 }
 
-
 function sh_wgetdefault(){
 	sh_testarota
 	if [ $? = $false ]; then
@@ -741,6 +820,7 @@ function sh_wgetdefault(){
 	fi
 	sh_delpackageindex
 	sh_wgetpackageindex
+    sh_choosepackage
 
 	if [ $FULLINST = $true ]; then
 		tarball_default=$tarball_full
@@ -789,11 +869,11 @@ function sh_wgetdefault(){
 
 			sh_testsha256sum
 			if [ $? = $false ]; then
-				conf "*** SHA256 ***" "\n$cmsgcorrdlnew"
+				confmulti "*** SHA256 ***" "\n$tarball_default" "\n\n$cmsgcorrdlnew"
 				if [ $? = $false ]; then
 					menuinstall
 				else
-					sh_deltarball
+					#sh_deltarball
 					sh_wgettarball
 					sh_wgetsha256sum
 					sh_testsha256sum
@@ -814,7 +894,7 @@ function sh_wgetdefault(){
 	fi
 
 	if [ $sumtest = $false ]; then
-		conf "$cmsg005" "\n$cmsgversion"
+		conf "$cmsgdlpkginst" "\n$cmsgversion"
 		local nchoice=$?
 		case $nchoice in
 			$D_OK)
@@ -823,11 +903,11 @@ function sh_wgetdefault(){
 				sh_wgettarball
 				sh_testsha256sum
 				if [ $? = $false ]; then
-					conf "*** SHA256 ***" "\n$cmsgcorrdlnew"
+    				confmulti "*** SHA256 ***" "\n$tarball_default" "\n\n$cmsgcorrdlnew"
 					if [ $? = $false ]; then
 						menuinstall
 					else
-						sh_deltarball
+						#sh_deltarball
 						sh_wgettarball
 						sh_wgetsha256sum
 						sh_testsha256sum
@@ -851,7 +931,7 @@ function sh_wgetdefault(){
 	   	fmazon=$( dialog --stdout --fselect './' 6 40 )
 		quit
 	else
-		confmulti "$cdlok1" "$cdlok2" "\n[ok] $tarball_default $cdlok3" "$cshaok" "$cdlok4"
+		confmulti "$cdlok1" "$cdlok2" "\n[OK] $tarball_default $cdlok3" "$cshaok" "$cdlok4"
 		local ninit=$?
 		case $ninit in
 			$D_OK)
@@ -1187,8 +1267,8 @@ do
 							fi
 							#echo "label: dos" | echo ";" | sfdisk --force $sd > /dev/null 2>&1
 							echo "label: gpt" | sfdisk --force $sd > /dev/null 2>&1
-							echo "size=1M, type=$nBIOS"  | sfdisk -a --force $sd > /dev/null 2>&1
 							echo "size=400M, type=$nEFI"   | sfdisk -a --force $sd > /dev/null 2>&1
+							echo "size=1M, type=$nBIOS"  | sfdisk -a --force $sd > /dev/null 2>&1
 							echo "size=$xMEMSWAP, type=$nSWAP"  | sfdisk -a --force $sd > /dev/null 2>&1
 							echo ";" | sfdisk -a --force $sd > /dev/null 2>&1
 							LDISK=1
@@ -1223,7 +1303,8 @@ function sh_mountpartition(){
 		if [ $? = 32 ]; then # monta?
 			conf "** MOUNT **" "$cmsg_try_mount_partition"
             if [ $? = 0 ]; then
-				loop
+				#loop
+				continue
 			fi
            	LMOUNT=0
 			break
@@ -1231,7 +1312,8 @@ function sh_mountpartition(){
 		if [ $? = 1 ]; then # fail?
 			conf "** MOUNT **" "$cmsg_mount_failed"
             if [ $? = 0 ]; then
-				loop
+				#loop
+				continue
 			fi
            	LMOUNT=0
 			break
@@ -1241,7 +1323,6 @@ function sh_mountpartition(){
 	LMOUNT=1
 	mensagem "$cmsg_enter_work_dir"
 	cd $dir_install
-	#menuinstall
 }
 
 function choosepartition(){
@@ -1331,7 +1412,7 @@ function scrmain(){
 				--cancel-label	"$buttonback"								\
 		        --menu 			"\n\n$cmsg004" 	 							\
 		        0 0 0                                 						\
-		        1 "$cmsg005"  												\
+		        1 "$cmsgdlpkginst"											\
 		        2 "$cmsg006"						  						\
 		        3 "$cmsg007"												\
 			   	4 "Install"	   					     						\
@@ -1367,7 +1448,7 @@ function pt_BR(){
 	cmsg002=$ctitle
 	cmsg003="Bem-vindo ao instalador do $cdistro"
 	cmsg004="Escolha uma opção:"
-	cmsg005="Baixar pacote de instalacao"
+	cmsgdlpkginst="Baixar pacote de instalacao"
 	cmsg006="Particionar Disco"
 	cmsg007="Escolher partição para instalar"
 	cmsg008="Sair do instalador"
@@ -1395,13 +1476,13 @@ function pt_BR(){
 	yeslabel="Sim"
 	nolabel="Não"
 	cdlok1="*** DOWNLOAD *** "
-	cdlok2="\n[ok] Download concluído com sucesso."
+	cdlok2="\n[OK] Download concluído com sucesso."
 	cdlok3="encontrado."
 	cdlok4="\n\nIniciar a instalação agora?"
-	cshaok="\n[ok] Checksum verificado com sucesso."
+	cshaok="\n[OK] Checksum verificado com sucesso."
     plswait="Por favor aguarde, baixando pacote..."
 	cfinish="Instalação completa! Boas vibes.\nReboot para iniciar com $cdistro Linux.\n\nBugs? $xmail"
-	cgrubsuccess="OK! GRUB instalado com sucesso!"
+	cgrubsuccess="GRUB instalado com sucesso!"
 	ccancelgrub="Instalação do GRUB cancelada!"
 	cgrubinst="Instalar GRUB"
 	cfstabinst="Alterar FSTAB"
@@ -1456,9 +1537,9 @@ function pt_BR(){
 	cmsgnoroute="Ops, sem rota para o servidor da $cdistro!\nVerifique sua internet."
 	cmsgerrodlsha1="Ops, erro no download de !\nVerifique sua internet."
 	cmsgerrodlsha2="Verifique sua internet."
-	cmsgcorrdlnew="Ops, Pacote corrompido. Baixar novamente o pacote?"
-	cmsg_corr_rep="Ops, Pacote corrompido. Favor repetir a operação!"
-	cmsg_erro_tar_continue="Erro na descompactação do pacote. Deseja ainda prosseguir?"
+	cmsgcorrdlnew="Ops, Pacote ou SHA256 corrompido. \nBaixar novamente o pacote?"
+	cmsg_corr_rep="Ops, Pacote ou SHA256 corrompido. \nFavor repetir a operação!"
+	cmsg_erro_tar_continue="Erro na descompactação do pacote. \nDeseja ainda prosseguir?"
 	cmsg_all_ready="Tudo pronto para iniciar a instalação. Confirma?"
     cmsg_wget_package_index="Aguarde, baixando indice dos pacotes..."
 	cmsg_nec_dismount="Necessário desmontar particao para reparticionar automaticamente."
@@ -1489,7 +1570,7 @@ function en_US(){
 	cmsg002=$ctitle
 	cmsg003=$welcome
 	cmsg004="Choose an option:"
-	cmsg005="Download installation package"
+	cmsgdlpkginst="Download installation package"
 	cmsg006="Partition Disk"
 	cmsg007="Choose partition to install"
 	cmsg008="Quit the installer"
@@ -1516,13 +1597,13 @@ function en_US(){
 	yeslabel="Yes"
 	nolabel="No"
 	cdlok1="*** DOWNLOAD ***"
-	cdlok2="\n[ok] Download completed successfully."
+	cdlok2="\n[OK] Download completed successfully."
 	cdlok3="found."
 	cdlok4="\n\nStart the installation now?"
-	cshaok="\n[ok] Checksum successfully verified."
+	cshaok="\n[OK] Checksum successfully verified."
     plswait="Please wait, Downloading package..."
 	cfinish="Install Complete! Good vibes. \nReboot to start with $cdistro Linux. \n\nBugs? $xemail"
-	cgrubsuccess="OK! GRUB successfully installed!"
+	cgrubsuccess="GRUB successfully installed!"
 	ccancelgrub="Installing grub canceled!"
 	cgrubinst="Install GRUB"
 	cfstabinst="Change FSTAB"
@@ -1577,9 +1658,9 @@ function en_US(){
 	cmsgnoroute="Oops, no route to the $cdistro server! \nCheck your internet."
 	cmsgerrodlsha1="Ops, error downloading of"
 	cmsgerrodlsha2="Check your internet."
-	cmsgcorrdlnew="Ops, corrupted package. Download the package again?"
-	cmsg_corr_rep="Ops, corrupted package. Please retry the operation!"
-	cmsg_erro_tar_continue="Error in decompressing the package. Do you want to continue?"
+	cmsgcorrdlnew="Ops, corrupted package or SHA256. \nDownload the package again?"
+	cmsg_corr_rep="Ops, corrupted package or SHA256. \nPlease retry the operation!"
+	cmsg_erro_tar_continue="Error in decompressing the package. \nDo you want to continue?"
 	cmsg_all_ready="All ready to begin the installation. Do you confirm?"
     cmsg_wget_package_index="Wait, downloading package index..."
 	cmsg_nec_dismount="Need to dismount partition to repartition automatically."
@@ -1747,7 +1828,7 @@ sh_tools(){
 		        case $tools in
 					1) STANDALONE=$true; grubinstall;;
 					2) STANDALONE=$true; sh_fstab;;
-					3) STANDALONE=$true; sh_bind;;
+					3) STANDALONE=$true; LDISK=0; LPARTITION=0; sh_bind;;
 					4) STANDALONE=$true; sh_confadduser;;
 					5) sh_packagedisp;;
 					6) choosedisk "SEE";;
