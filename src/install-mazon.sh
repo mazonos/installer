@@ -2,11 +2,11 @@
 declare -r version="v1.9.17-20190323"
 #################################################################
 #       install dialog Mazon OS - $version                      #
-#								                                #
-#      @utor: Diego Sarzi	    <diegosarzi@gmail.com>          #
+#                                                               #                              #                                                               #
+#      @utor: Diego Sarzi	    <diegosarzi@gmail.com>      #
 #             Vilmar Catafesta 	<vcatafesta@gmail.com>	    	#
-#      created: 2019/02/15	    licence: MIT		            #
-#      altered: 2019/02/17-25	licence: MIT			        #
+#      created: 2019/02/15	    licence: MIT		#
+#      altered: 2019/02/17-25	licence: MIT			#
 #################################################################
 
 #. /lib/lsb/init-functions
