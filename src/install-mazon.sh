@@ -1,12 +1,12 @@
 #!/bin/bash
-declare -r version="v1.9.17-20190323"
+declare -r version="v1.9.18-20190421"
 #################################################################
 #       install dialog Mazon OS - $version                      #
-#                                                               #                              #                                                               #
-#      @utor: Diego Sarzi	    <diegosarzi@gmail.com>      #
+#								                                #
+#      @utor: Diego Sarzi	    <diegosarzi@gmail.com>          #
 #             Vilmar Catafesta 	<vcatafesta@gmail.com>	    	#
-#      created: 2019/02/15	    licence: MIT		#
-#      altered: 2019/02/17-25	licence: MIT			#
+#      created: 2019/02/15	    licence: MIT		            #
+#      altered: 2019/02/17-25	licence: MIT			        #
 #################################################################
 
 #. /lib/lsb/init-functions
@@ -119,8 +119,20 @@ CURS_ZERO="\\033[0G"
 # usuario/senha/hostmame/group
 : ${cuser=""}
 : ${cpass=""}
-: ${chost="mazonos"}
 : ${cgroups="audio,video,netdev"}
+
+# servidor internet
+chost="mazonos"
+ptcom=".com"
+oldspkg="olds/"
+
+# servidor local
+#chost="10.0.0.66"
+#ptcom=""
+#oldspkg="/"
+
+# variavel comum do site
+site="$chost$ptcom"
 
 # vars
 declare -i ok=$true
@@ -134,7 +146,6 @@ declare -r cdistro="MazonOS"
 declare -r ccabec="$cdistro Linux installer $version"
 declare -r ctitle="$cdistro Linux"
 declare -r welcome="Welcome to the $ccabec"
-declare -r site="$chost.com"
 declare -r xemail="root@mazonos.com"
 declare -r dir_install="/mnt/$chost"
 declare -r url_release="http://$site/releases"
@@ -560,6 +571,7 @@ function sh_confhost(){
     msg "INFO" "$cinfo"
 	if [ "$chost" != "$calias" ]; then
 		echo $chost > $dir_install/etc/hostname
+		echo "127.0.0.1   $chost" >> $dir_install/etc/hosts
 	    return $?
 	fi
 }
@@ -568,6 +580,14 @@ function sh_adduser(){
 	if [ "$cuser" != " " ]; then
 		if [ $FULLINST = $false ]; then
 			cgroups="audio,video"
+		fi
+
+		if [ $LPARTITION -eq 0 ]; then
+			choosepartition
+			if [ $LPARTITION -eq 0 ]; then
+				info "\n$cancelinst"
+				return 1
+			fi
 		fi
 
 		if [ $LMOUNT -eq 0 ]; then
@@ -1356,7 +1376,7 @@ function sh_partnewbie(){
 
     local xMEMSWAP=$(free | grep Mem | awk '{ print $2}')
 	if [ $xMEMSWAP = "" ] ; then
-		xMEMSWAP = "2G" ]
+		xMEMSWAP = "2G"
 	fi
 
     #flock $sd sfdisk --delete --force $sd  > /dev/null 2>&1
@@ -2056,18 +2076,21 @@ function sh_packagedisp(){
 		info "\n$cmsgnoroute"
 		menuinstall
 	fi
-	sh_delpackageindex
+    sh_delpackageindex
 	sh_wgetpackageindex
 
-    pkt=($(cat releases                 \
-        | grep .xz                      \
-        | awk '{print $2, $5}'          \
-        | sed 's/<a href=\"//g'         \
-        | cut -d'"' -f3                 \
-        | sed 's/>//g'                  \
-        | sed 's/<\/a//g' ))
+#   pkt=($(cat releases                 \
+#       | grep .xz                      \
+#       | awk '{print $2, $5}'          \
+#       | sed 's/<a href=\"//g'         \
+#       | cut -d'"' -f3                 \
+#       | sed 's/>//g'                  \
+#       | sed 's/<\/a//g' ))
 
-     sd=$(dialog 				                                \
+#   pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/<[^h]*h/ /g'| awk '{print $1}' | grep "xz$"|sed 's/"/ /g' | awk '{print $2,$2}'))
+    pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/<[^>]*>//g'| sed 's/^[ \t]*//;s/[ \t]*$//' | awk '{print $1,$1}' | grep "xz$"))
+
+    sd=$(dialog 				                                \
                  --backtitle     "$ccabec"                      \
                  --title         "$ccabec"                      \
                  --cancel-label  "Voltar"                       \
