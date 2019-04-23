@@ -1,5 +1,5 @@
 #!/bin/bash
-declare -r version="v1.9.18-20190421"
+declare -r version="v1.9.20-20190422"
 #################################################################
 #       install dialog Mazon OS - $version                      #
 #								                                #
@@ -2088,14 +2088,15 @@ function sh_packagedisp(){
 #       | sed 's/<\/a//g' ))
 
 #   pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/<[^h]*h/ /g'| awk '{print $1}' | grep "xz$"|sed 's/"/ /g' | awk '{print $2,$2}'))
-    pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/<[^>]*>//g'| sed 's/^[ \t]*//;s/[ \t]*$//' | awk '{print $1,$1}' | grep "xz$"))
-
+#   pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/<[^>]*>//g'| sed 's/^[ \t]*//;s/[ \t]*$//' | awk '{print $1,$1}'| grep "xz$"))
+#   pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/href="/:/g'| sed 's/">/:/g' | cut -d: -f4  | awk '{print $1,$1}'| grep ".xz$"))
+    pkt=($(curl -k -s --url "${site}/releases/$oldspkg"| sed 's/^.*href="//'|sed 's/".*$//' | grep ".xz$" | awk '{print $1,$1}'))
     sd=$(dialog 				                                \
                  --backtitle     "$ccabec"                      \
                  --title         "$ccabec"                      \
                  --cancel-label  "Voltar"                       \
                  --menu          "\n$cmsgPacotes_disponiveis:"	\
-			     0 50 0											\
+			     0 0 0											\
                 "${pkt[@]}" 2>&1 >/dev/tty						)
 
      exit_status=$?
