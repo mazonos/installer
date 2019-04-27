@@ -1,5 +1,5 @@
 #!/bin/bash
-declare -r version="v1.9.20-20190422"
+declare -r version="v2.0.0-20190427"
 #################################################################
 #       install dialog Mazon OS - $version                      #
 #								                                #
@@ -37,6 +37,7 @@ nBIOS=4
 nSWAP=19
 nLINUX=20
 
+# vars bool
 trancarstderr=2>&-
 true=0
 TRUE=0
@@ -52,6 +53,7 @@ ESC=255
 HEIGHT=0
 WIDTH=0
 
+# Use a colored prefix
 NORMAL="\\033[0;39m"         # Standard console grey
 SUCCESS="\\033[1;32m"        # Success is green
 WARNING="\\033[1;33m"        # Warnings are yellow
@@ -59,7 +61,6 @@ FAILURE="\\033[1;31m"        # Failures are red
 INFO="\\033[1;36m"           # Information is light cyan
 BRACKET="\\033[1;34m"        # Brackets are blue
 
-# Use a colored prefix
 BMPREFIX="     "
 SUCCESS_PREFIX="${SUCCESS}  *  ${NORMAL}"
 FAILURE_PREFIX="${FAILURE}*****${NORMAL}"
@@ -100,6 +101,49 @@ SET_WCOL="\\033[${WCOL}G"    # at the $WCOL char
 CURS_UP="\\033[1A\\033[0G"   # Up one line, at the 0'th char
 CURS_ZERO="\\033[0G"
 
+#distro
+xdistro=$(uname -n)
+
+if [ "${xdistro}" = "mazonos" ]; then
+    cdistro="MazonOS"
+    # servidor internet
+    chost="mazonos"
+    ptcom=".com"
+    oldspkg="olds/"
+    calias="mazonos"
+    cnick="mazon"
+    xemail="root@$chost$ptcom"
+else
+    cdistro="ChiliOS"
+    # servidor local
+    chost="201.7.66.107"
+    ptcom=""
+    oldspkg="/"
+    calias="chilios"
+    cnick="chili"
+    xemail="vcatafesta@gmail.com"
+fi
+
+# variavel comuns
+site="$chost$ptcom"
+chostname=$alias
+grafico=$true
+ccabec="$cdistro Linux installer $version"
+ctitle="$cdistro Linux"
+welcome="Welcome to the $ccabec"
+dir_install="/mnt/lfs"
+url_release="http://$site/releases"
+url_distro="http://$site/releases/"
+pwd=$PWD
+cfstab=$dir_install"/etc/fstab"
+: ${tarball_min=$cnick"_minimal-0.3.tar.xz"}
+: ${sha256_min=$cnick"_minimal-0.3.tar.xz.sha256sum"}
+: ${tarball_full=$cnick"_beta-1.3.tar.xz"}
+: ${sha256_full=$cnick"_beta-1.3.tar.xz.sha256sum"}
+: ${FULLINST=$true}
+: ${tarball_default=$tarball_full}
+: ${sha256_default=$sha256_full}
+
 # flag para disco/particao/formatacao/montagem
 : ${LDISK=0}
 : ${LPARTITION=0}
@@ -114,58 +158,19 @@ CURS_ZERO="\\033[0G"
 : ${lEFI=$false}
 : ${LGRUB="EFI"}
 : ${LAUTOMATICA=$false}
-: ${xLABEL="MAZONOS"}
+: ${xLABEL=$cdistro}
 
 # usuario/senha/hostmame/group
 : ${cuser=""}
 : ${cpass=""}
 : ${cgroups="audio,video,netdev"}
 
-# servidor internet
-chost="mazonos"
-ptcom=".com"
-oldspkg="olds/"
-
-# servidor local
-#chost="10.0.0.66"
-#ptcom=""
-#oldspkg="/"
-
-# variavel comum do site
-site="$chost$ptcom"
-
-# vars
-declare -i ok=$true
-declare -i grafico=$true
-declare -r cshell="/bin/bash"
-declare -r calias="mazonos"
-declare -r cnick="mazon"
-declare -r chome="/home"
-declare -r capp="install-mazon"
-declare -r cdistro="MazonOS"
-declare -r ccabec="$cdistro Linux installer $version"
-declare -r ctitle="$cdistro Linux"
-declare -r welcome="Welcome to the $ccabec"
-declare -r xemail="root@mazonos.com"
-declare -r dir_install="/mnt/$chost"
-declare -r url_release="http://$site/releases"
-declare -r url_distro="http://$site/releases/"
-declare -r pwd=$PWD
-declare -r cfstab=$dir_install"/etc/fstab"
-: ${tarball_min=$cnick"_minimal-0.3.tar.xz"}
-: ${sha256_min=$cnick"_minimal-0.3.tar.xz.sha256sum"}
-: ${tarball_full=$cnick"_beta-1.3.tar.xz"}
-: ${sha256_full=$cnick"_beta-1.3.tar.xz.sha256sum"}
-: ${FULLINST=$true}
-: ${tarball_default=$tarball_full}
-: ${sha256_default=$sha256_full}
-
-declare -r wiki=$(cat << _WIKI
+wiki=$(cat << _WIKI
 Wiki
-There are two ways to install, with the install-mazon.sh (dep dialog) script or the manual form as follows:
+There are two ways to install, with the install-$cnick (dep dialog) script or the manual form as follows:
 
 Pre Requirements:
-- Download MazonOS Linux
+- Download $cdistro Linux
 - An existing Linux distribution or a linux livecd.
 - Create root partition using cfdisk or gparted (ext4) and DOS table / - min 20GB
 
@@ -174,8 +179,8 @@ Format partition:
 Mount partition in /mnt
 # mount /dev/sdx(x) /mnt
 
-Unzip the mazonos file in /mnt:
-# tar -xJpvf /xxx/xxx/mazonos.tar.xz -C /mnt
+Unzip the $cdistro file in /mnt:
+# tar -xJpvf /xxx/xxx/$calias.tar.xz -C /mnt
 
 Go to /mnt directory:
 # cd /mnt
@@ -192,7 +197,7 @@ Once in chroot, let's change the fstab file in /etc/fstab, using vim or nano.
 Add your root partition (replace (x)) and save the file.
 In case you don't remember which is the root partition, use fdisk -l to see it.
 /dev/sdx(x) / ext4 defaults 1 1
-- ( BOOT USING MAZONOS GRUB )
+- ( BOOT USING $cdistro GRUB )
 - Install grub to your disk:
 # grub-install /dev/sd(x)
 - Create grub.cfg:
@@ -200,7 +205,7 @@ In case you don't remember which is the root partition, use fdisk -l to see it.
 - Exit chroot and unmount the partitions:
 # exit
 # umount -Rl /mnt
-- Reboot your system and enjoy MazonOS.
+- Reboot your system and enjoy $cdistro.
 
 - ( DUAL BOOT USING EXISTING GRUB )
 - If you want to do a dual boot with your existing system with a working grub, exit
@@ -208,7 +213,7 @@ In case you don't remember which is the root partition, use fdisk -l to see it.
 # exit
 # umount -Rl /mnt
 # update-grub
-- Reboot your system and enjoy MazonOS.
+- Reboot your system and enjoy $cdistro.
 
 After installing and logging in a login system: root password: root, add a user with:
 # useradd -m -G audio,video,netdev username
@@ -569,9 +574,9 @@ function sh_testsha256sum(){
 function sh_confhost(){
 	cinfo=`log_info_msg "$cmsgaddhost"`
     msg "INFO" "$cinfo"
-	if [ "$chost" != "$calias" ]; then
+	if [ "$chostname" != "$calias" ]; then
 		echo $chost > $dir_install/etc/hostname
-		echo "127.0.0.1   $chost" >> $dir_install/etc/hosts
+		echo "127.0.0.1   $chostname" >> $dir_install/etc/hosts
 	    return $?
 	fi
 }
@@ -616,11 +621,11 @@ function sh_confadduser(){
 	12 50 0 														\
 		"Username : " 1 1 "$cuser"        1 13 20 0 				\
 		"Password : " 2 1 "$cpass"        2 13 20 0 				\
-		"Hostname : " 3 1 "$chost"        3 13 20 0					\
+		"Hostname : " 3 1 "$chostname"    3 13 20 0					\
 	2>&1 1>&3 | {
 		read -r cuser
 		read -r cpass
-		read -r chost
+		read -r chostname
 
 		sh_adduser
 	}
@@ -685,6 +690,70 @@ function sh_exectar(){
 	sh_confstartx
 	TARSUCCESS=$true
 	return $TARSUCCESS
+}
+
+function sh_stopbind(){
+    local xproc="$dir_install/proc"
+	local xsys="$dir_install/sys"
+    local xdev="$dir_install/dev"
+    local xpts="$dir_install/dev/pts"
+    local xshm="$dir_install/dev/shm"
+    local xqueue="$dir_install/dev/mqueue"
+    local xrun="$dir_install/run"
+    local lproc=$false
+    local lsys=$false
+    local ldev=$false
+    local lpts=$false
+    local lrun=$false
+    local lshm=$false
+    local lqueue=$false
+
+    pushd $pwd &>/dev/null
+   	mensagem "umount $xshm"
+   	umount -Rl $xshm > /dev/null 2>&1
+    lresultbind=$true
+    if [ $? = 0 ] ; then lshm="OK"; else lshm="FAIL" lresultbind=$false; fi
+
+   	mensagem "umount $xqueue"
+   	umount -Rl $xqueue > /dev/null 2>&1
+    lresultbind=$true
+    if [ $? = 0 ] ; then lqueue="OK"; else lqueue="FAIL" lresultbind=$false; fi
+
+   	mensagem "umount $xpts"
+   	umount -Rl $xpts > /dev/null 2>&1
+    lresultbind=$true
+    if [ $? = 0 ] ; then lpts="OK"; else lpts="FAIL" lresultbind=$false; fi
+
+   	mensagem "umount $xproc"
+   	umount -Rl $xproc > /dev/null 2>&1
+    lresultbind=$true
+    if [ $? = 0 ] ; then lproc="OK"; else lproc="FAIL" lresultbind=$false; fi
+
+	mensagem "umount $xsys"
+	umount -Rl $xsys > /dev/null 2>&1
+    if [ $? = 0 ] ; then lsys="OK"; else lsys="FAIL" lresultbind=$false; fi
+
+    mensagem "umount $xrun"
+    umount -Rl $xrun > /dev/null 2>&1
+    if [ $? = 0 ] ; then lrun="OK"; else lrun="FAIL" lresultbind=$false; fi
+
+    mensagem "umount $xdev"
+    umount -Rl $xdev > /dev/null 2>&1
+    if [ $? = 0 ] ; then ldev="OK"; else ldev="FAIL" lresultbind=$false; fi
+
+    mensagem "umount $xdev"
+    umount -Rl $xdev > /dev/null 2>&1
+    if [ $? = 0 ] ; then ldev="OK"; else ldev="FAIL" lresultbind=$false; fi
+
+    mensagem "umount $xdev"
+    umount -Rl $xdev > /dev/null 2>&1
+    if [ $? = 0 ] ; then ldev="OK"; else ldev="FAIL" lresultbind=$false; fi
+
+    xstrbind="mount $xproc : $lproc    \
+            \nmount $xsys : $lsys     \
+            \nmount $xdev : $ldev     \
+            \nmount $xrun : $lrun"
+    popd  &>/dev/null
 }
 
 function sh_initbind(){
@@ -807,7 +876,7 @@ function sh_grubEFI(){
     chroot . /bin/bash -c "grub-install     \
         --target=x86_64-efi                 \
         --efi-directory=/boot/EFI           \
-        --bootloader-id=mazon               \
+        --bootloader-id=$cnick              \
         --recheck">/dev/null 2>&1
     evaluate_retval
     return $?
@@ -819,7 +888,7 @@ function sh_grubmkconfig(){
     chroot . /bin/bash -c "grub-mkconfig -o /boot/grub/grub.cfg" > /dev/null 2>&1
     evaluate_retval
     local nchoice=$?
-    echo "set menu_color_normal=green/black"  >> $dir_install/boot/grub/grub.cfg 2> /dev/null
+    echo "set menu_color_normal=white/blue"  >> $dir_install/boot/grub/grub.cfg 2> /dev/null
     echo "set menu_color_highlight=white/red" >> $dir_install/boot/grub/grub.cfg 2> /dev/null
     return $nchoice
 }
@@ -2004,8 +2073,8 @@ function sh_testdialog(){
     evaluate_retval
 
 	if [ $? = $false ]; then
-		echo "You must install the dialog package to run $capp"
-		echo "Voce deve instalar o pacote dialog para executar o $capp!"
+		echo "You must install the dialog package to run $0"
+		echo "Voce deve instalar o pacote dialog para executar o $0!"
 		scrend 1
 	fi
 	grafico=$xswap_grafico
@@ -2260,6 +2329,7 @@ function sh_tailexecrsync(){
         --begin 10 10 --tailboxbg out 04 120      \
         --and-widget                              \
         --begin 3 10 --msgbox "Aguarde" 5 30
+
     rm -f out > /dev/null 2>&1
     return $nret
 }
@@ -2340,10 +2410,14 @@ function sh_liveinstall(){
    		sh_confadduser
    	fi
 	grubinstall
+    sh_stopbind
+    sh_stopbind
+    sh_stopbind
     zeravar
 }
 
 # Init - configuracao inicial
+sh_stopbind
 init
 
 :<<'LIXO'
