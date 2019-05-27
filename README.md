@@ -1,2 +1,0 @@
-# installer
-Instalador Mazon OS
